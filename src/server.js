@@ -1,13 +1,25 @@
 import express from 'express'
+import { API_V1 } from './routes'
+import { CONNECT_DB } from './config/mongodb'
+import { env } from '~/config/environment'
+import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
 
-const app = express()
+const START_SERVER = () => {
+  const app = express()
 
-const port = 8080
+  //middleware config handle JSON 
+  app.use(express.json());
+  //config route
+  app.use('/v1', API_V1)
+  
+  app.use(errorHandlingMiddleware)
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+  app.listen(env.APP_PORT, () => {
+    console.log(`Example app listening on port ${env.APP_PORT}`)
+  })
+}
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+CONNECT_DB()
+  .then(() => console.log('Connect mongodb success!'))
+  .then(() =>  START_SERVER())
+  .catch(error => {console.log(error)})
