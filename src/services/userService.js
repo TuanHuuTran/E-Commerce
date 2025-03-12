@@ -7,7 +7,7 @@ import { JWTProvider } from '~/providers/JWTProvider'
 import { SendEmailProvider } from '~/providers/SendEmailProvider'
 import ApiError from '~/utils/ApiError'
 import Exception from '~/utils/Exception'
-import { pickUser } from '~/utils/formaters'
+import { pickUser } from '~/utils/formatters'
 
 const createUser = async (reqBody) => {
   try {
@@ -34,7 +34,7 @@ const login = async (reqBody) => {
   try {
     const exitUser = await userModel.findOneByEmail(reqBody.email)
     if (!exitUser) throw new ApiError(StatusCodes.NOT_FOUND,Exception.USER_NOT_FOUND)
-    if ( !exitUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active!')
+    if ( !exitUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, Exception.WRONG_USERNAME_PASSWORD)
     if (!compareSync(reqBody.password, exitUser.password) ) throw new ApiError(StatusCodes.NOT_ACCEPTABLE,ExceptionWRONG_USERNAME_PASSWORD)
     
     const userInfo = {
@@ -62,11 +62,24 @@ const login = async (reqBody) => {
   } catch (error) {throw error}
 }
 
+const refreshToken = async (refreshToken) => {
+  try {
+  const refreshTokenDecoded = await JWTProvider.verifyToken(refreshToken, env.REFRESH_TOKEN_SECRET_SIGNATURE)
+  const userInfo = {
+    id: refreshTokenDecoded.id,
+    email: refreshTokenDecoded.email
+  }
+  const accessToken = await JWTProvider.generateToken(userInfo, env.ACCESS_TOKEN_SECRET_SIGNATURE, env.ACCESS_TOKEN_LIFE)
+  return {accessToken}
+
+  } catch (error) {throw error}
+}
+
 const verifyAccount = async (token, email) => {
   const existUser = await userModel.findOneByEmail(email)
   if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND,Exception.USER_NOT_FOUND)
-  if ( existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already active!')
-  if (token !== existUser.verifyToken) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Token is invalid!')
+  if ( existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, Exception.WRONG_USERNAME_PASSWORD)
+  if (token !== existUser.verifyToken) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, Exception.TOKEN_INVALID)
  
   const dataUpdate = {
     isActive: true,
@@ -79,5 +92,6 @@ const verifyAccount = async (token, email) => {
 export const userService = {
   createUser,
   login,
-  verifyAccount
+  verifyAccount,
+  refreshToken
 }

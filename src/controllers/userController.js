@@ -17,8 +17,15 @@ export const verifyAccount = async (req, res) => {
   const result = await userService.verifyAccount(token, email)
   res.status(StatusCodes.CREATED).json(result)
 }
+
+export const refreshToken = async (req, res) => {
+
+  const result = await userService.refreshToken(req.body?.refreshToken)
+  res.status(StatusCodes.CREATED).json(result)
+}
 export const userController = {
   createUser,
   login,
-  verifyAccount
+  verifyAccount,
+  refreshToken
 }
