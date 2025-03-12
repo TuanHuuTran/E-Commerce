@@ -7,5 +7,6 @@ export default class Exception {
   static USER_NOT_FOUND = 'User not found!'
   static WRONG_USERNAME_PASSWORD = 'Your account is not active!'
   static TOKEN_IS_EXPIRED = "Token has expired"
+  static TOKEN_INVALID = 'Token is invalid!'
   static ERROR_REGISTER_USER = "Error when registering user"
 }
