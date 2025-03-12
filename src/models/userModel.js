@@ -36,6 +36,7 @@ const validateBeforeCreate = async (data) => {
 }
 
 const findOneById =async (userId) => {
+  console.log('userId', userId)
   try {
     const result = await GET_DB().collection(USER_COLLECTION_NAME).findOne({ _id: new ObjectId(userId) })
     return result

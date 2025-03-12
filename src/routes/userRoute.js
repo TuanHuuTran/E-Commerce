@@ -20,7 +20,10 @@ Router.route('/verify-account')
 .get(userValidator.verifyAccount, asyncHandler(userController.verifyAccount))
 
 Router.route('/update')
-.post(authMiddleware.isAuthorized)
-  // , userValidator.update,  asyncHandler(userController.update))
+.post(
+  authMiddleware.isAuthorized, 
+  userValidator.update,
+  asyncHandler(userController.update)
+)
 
 export const userRoute = Router

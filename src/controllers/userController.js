@@ -23,9 +23,19 @@ export const refreshToken = async (req, res) => {
   const result = await userService.refreshToken(req.body?.refreshToken)
   res.status(StatusCodes.CREATED).json(result)
 }
+
+export const update = async (req, res) => {
+  const userId = req.jwtDecoded.id
+  const avatarUpload = req.file?.originalname
+  const userAvatarFile = req.file
+  const result = await userService.update(userId,avatarUpload, userAvatarFile)
+  res.status(StatusCodes.OK).json(result)
+}
+
 export const userController = {
   createUser,
   login,
   verifyAccount,
-  refreshToken
+  refreshToken,
+  update
 }
