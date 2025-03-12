@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '~/config/environment'
 import { userModel } from '~/models/userModel'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 import { JWTProvider } from '~/providers/JWTProvider'
 import { SendEmailProvider } from '~/providers/SendEmailProvider'
 import ApiError from '~/utils/ApiError'
@@ -89,9 +90,34 @@ const verifyAccount = async (token, email) => {
   return 'Account already!'
 }
 
+const update = async (userId, avatarLocal, avatarCloudinary) => {
+
+ 
+}
+
+const updateAvatarLocal = async (userId, avatarLocal) => {
+  const existUser = await userModel.findOneById(userId)
+  if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, "User not found")
+
+  const userUpdate = await userModel.update(userId, { avatar: avatarLocal })
+  return userUpdate
+}
+
+const updateAvatarCloudinary = async (userId, avatarCloudinary) => {
+  const existUser = await userModel.findOneById(userId)
+  if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, "User not found")
+
+  const uploadResult = await CloudinaryProvider.streamUpload(avatarCloudinary.buffer, 'users')
+  const userUpdate = await userModel.update(userId, { avatar: uploadResult.secure_url })
+  return userUpdate
+}
+
 export const userService = {
   createUser,
   login,
   verifyAccount,
-  refreshToken
+  refreshToken,
+  update,
+  updateAvatarLocal,
+  updateAvatarCloudinary
 }
