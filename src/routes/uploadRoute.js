@@ -22,4 +22,10 @@ Router.route('/cloudinary')
   asyncHandler(uploadController.uploadAvatarCloudinary)
 )
 
+Router.route('/images/product')
+.put(
+  authMiddleware.isAuthorized, 
+  multerUploadCloudinaryMiddleware.uploadCloudinary.array('images', 10),
+  asyncHandler(uploadController.uploadImagesToProduct)
+)
 export const uploadRoute = Router

@@ -2,6 +2,7 @@ import express from 'express'
 import { userController } from '~/controllers/userController'
 import asyncHandler from '~/middlewares/asyncHandler'
 import { authMiddleware } from '~/middlewares/authMiddleware'
+import { multerUploadCloudinaryMiddleware } from '~/middlewares/multerUploadCloudinaryMiddleware'
 import { userValidator } from '~/validations/userValidation'
 
 
@@ -20,9 +21,10 @@ Router.route('/verify-account')
 .get(userValidator.verifyAccount, asyncHandler(userController.verifyAccount))
 
 Router.route('/update')
-.post(
+.put(
   authMiddleware.isAuthorized, 
   userValidator.update,
+  multerUploadCloudinaryMiddleware.uploadCloudinary.single('avatar'),
   asyncHandler(userController.update)
 )
 

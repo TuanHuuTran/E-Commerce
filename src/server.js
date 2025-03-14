@@ -8,7 +8,8 @@ const START_SERVER = () => {
   const app = express()
 
   //middleware config handle JSON 
-  app.use(express.json());
+  app.use(express.json()) // Xử lý JSON body
+  app.use(express.urlencoded({ extended: true })) // Xử lý form-urlencoded
   //config route
   app.use('/v1', API_V1)
   

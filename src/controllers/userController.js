@@ -26,9 +26,8 @@ export const refreshToken = async (req, res) => {
 
 export const update = async (req, res) => {
   const userId = req.jwtDecoded.id
-  const avatarUpload = req.file?.originalname
-  const userAvatarFile = req.file
-  const result = await userService.update(userId,avatarUpload, userAvatarFile)
+  const avatarUpload = req.file
+  const result = await userService.update(userId, req.body, avatarUpload)
   res.status(StatusCodes.OK).json(result)
 }
 

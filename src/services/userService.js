@@ -36,7 +36,7 @@ const login = async (reqBody) => {
     const exitUser = await userModel.findOneByEmail(reqBody.email)
     if (!exitUser) throw new ApiError(StatusCodes.NOT_FOUND,Exception.USER_NOT_FOUND)
     if ( !exitUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, Exception.WRONG_USERNAME_PASSWORD)
-    if (!compareSync(reqBody.password, exitUser.password) ) throw new ApiError(StatusCodes.NOT_ACCEPTABLE,ExceptionWRONG_USERNAME_PASSWORD)
+    if (!compareSync(reqBody.password, exitUser.password) ) throw new ApiError(StatusCodes.NOT_ACCEPTABLE,Exception.WRONG_USERNAME_PASSWORD)
     
     const userInfo = {
       id: exitUser._id,
@@ -90,9 +90,27 @@ const verifyAccount = async (token, email) => {
   return 'Account already!'
 }
 
-const update = async (userId, avatarLocal, avatarCloudinary) => {
+const update = async (userId, reqData, avatarUpload) => {
 
- 
+  try {
+    const existUser = await userModel.findOneById(userId)
+    if(!existUser) throw new ApiError(StatusCodes.NOT_FOUND,Exception.USER_NOT_FOUND)
+    if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not active')
+    let updateUser = {}
+  
+    if(reqData.oldPassword && reqData.newPassword) {
+      if (!compareSync(reqData.oldPassword, existUser.password) ) {
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE,Exception.WRONG_USERNAME_PASSWORD)
+      }
+      updateUser = await userModel.update(userId, {password: hashSync(reqData.newPassword, 8)})
+    } else if (avatarUpload) {
+      const result = await CloudinaryProvider.streamUpload(avatarUpload.buffer, 'users')
+      updateUser = await userModel.update(userId, {avatar: result.secure_url})
+    } else {
+      updateUser = await userModel.update(userId, reqData)
+    }
+    return updateUser
+  } catch (error) {throw error}
 }
 
 const updateAvatarLocal = async (userId, avatarLocal) => {
