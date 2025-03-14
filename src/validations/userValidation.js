@@ -46,8 +46,9 @@ const verifyAccount = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   const correctCondition = Joi.object({
-    current_password: Joi.string().pattern(PASSWORD_RULE).message(`current_password: ${PASSWORD_RULE_MESSAGE}`),
-    new_password: Joi.string().pattern(PASSWORD_RULE).message(`new_password: ${PASSWORD_RULE_MESSAGE}`)
+    oldPassword: Joi.string().pattern(PASSWORD_RULE).message(`oldPassword: ${PASSWORD_RULE_MESSAGE}`),
+    newPassword: Joi.string().pattern(PASSWORD_RULE).message(`newPassword: ${PASSWORD_RULE_MESSAGE}`),
+    username: Joi.string().trim().strict()
   })
 
   try {
