@@ -23,78 +23,150 @@ const validateProduct = async (productId, quantity, session) => {
   return product
 }
 
+// const addToCart = async (userId, productId, quantity) => {
+//   const session = await GET_CLIENT().startSession()
+//   try {
+//     session.startTransaction()
+//     let resultCart 
+
+//     // Kiểm tra product trong db
+//     const existProduct = await validateProduct(productId, quantity, session)
+
+//     // Kiểm tra xem đã có cart của user đó chưa
+//     let cart = await cardModel.findCartByUserId(userId, session)
+
+//     if (!cart) {
+//       // Nếu chưa có cart thì tạo mới cart
+//       cart = await cardModel.addToCart({
+//         userId,
+//         items: [],
+//         totalPrice: quantity * existProduct.price,
+//       }, session)
+      
+//       const newCartItem = await cartDetailModel.create({
+//         cartId: cart.insertedId.toString(),
+//         productId: productId,
+//         quantity: quantity,
+//         totalPrice: quantity * existProduct.price // giá của sản phẩm product
+//       }, session)
+
+//       // cập nhật Id vào trong trường items của cart
+//       resultCart =  await cardModel.updateItems(cart.insertedId, new ObjectId(newCartItem.insertedId),session)
+//     } else {
+
+//       // Nếu có cart kiểm tra xem product đó có trong cart chưa
+//       const exitsProductInCart = await cartDetailModel.findProductInCartDetail(productId, cart._id, session)
+//       if(!exitsProductInCart) {
+
+//         // Nếu chưa có thì thêm mới vào cart
+//         const newCartItem = await cartDetailModel.create({
+//           cartId: cart._id.toString(),
+//           productId: productId,
+//           quantity: quantity,
+//           totalPrice: quantity*existProduct.price // giá của sản phẩm product
+//         }, session)
+
+//         // cập nhật Id vào trong trường items của cart
+//         await cardModel.updateItems(cart._id, new ObjectId( newCartItem.insertedId),session)
+//         resultCart = await cardModel.updatePrice(cart._id, quantity * existProduct.price, session)
+
+//       } else{
+
+//         // Nếu có product trong cart cập nhật số lượng và giá của product 
+//         const oldQuantity = exitsProductInCart.quantity
+//         const newQuantity = quantity
+//         const priceDifference = (newQuantity - oldQuantity) * existProduct.price
+
+//         await cartDetailModel.update(
+//           exitsProductInCart._id,
+//           { quantity: newQuantity, totalPrice: newQuantity * existProduct.price },
+//           session
+//         )
+
+//         resultCart =  await cardModel.updatePrice(cart._id, priceDifference, session)
+//       }
+//     }
+//     await session.commitTransaction()
+//     return resultCart
+//   } catch (error) {
+//     await session.abortTransaction()
+//     throw error
+//   } finally {
+//     session.endSession()
+//   }
+// }
+
 const addToCart = async (userId, productId, quantity) => {
   const session = await GET_CLIENT().startSession()
+
   try {
-    session.startTransaction()
-    let resultCart 
+    return await session.withTransaction(async () => {
+      let resultCart 
 
-    // Kiểm tra product trong db
-    const existProduct = await validateProduct(productId, quantity, session)
+      // Kiểm tra product trong DB
+      const existProduct = await validateProduct(productId, quantity, session)
 
-    // Kiểm tra xem đã có cart của user đó chưa
-    let cart = await cardModel.findCartByUserId(userId, session)
+      // Kiểm tra xem user đã có cart chưa
+      let cart = await cardModel.findCartByUserId(userId, session)
 
-    if (!cart) {
-      // Nếu chưa có cart thì tạo mới cart
-      cart = await cardModel.addToCart({
-        userId,
-        items: [],
-        totalPrice: quantity * existProduct.price,
-      }, session)
-      
-      const newCartItem = await cartDetailModel.create({
-        cartId: cart.insertedId.toString(),
-        productId: productId,
-        quantity: quantity,
-        totalPrice: quantity * existProduct.price // giá của sản phẩm product
-      }, session)
-
-      // cập nhật Id vào trong trường items của cart
-      resultCart =  await cardModel.updateItems(cart.insertedId, new ObjectId(newCartItem.insertedId),session)
-    } else {
-
-      // Nếu có cart kiểm tra xem product đó có trong cart chưa
-      const exitsProductInCart = await cartDetailModel.findProductInCartDetail(productId, cart._id, session)
-      if(!exitsProductInCart) {
-
-        // Nếu chưa có thì thêm mới vào cart
-        const newCartItem = await cartDetailModel.create({
-          cartId: cart._id.toString(),
-          productId: productId,
-          quantity: quantity,
-          totalPrice: quantity*existProduct.price // giá của sản phẩm product
+      if (!cart) {
+        // Nếu chưa có cart thì tạo mới cart
+        cart = await cardModel.addToCart({
+          userId,
+          items: [],
+          totalPrice: quantity * existProduct.price,
         }, session)
 
-        // cập nhật Id vào trong trường items của cart
-        await cardModel.updateItems(cart._id, new ObjectId( newCartItem.insertedId),session)
-        resultCart = await cardModel.updatePrice(cart._id, quantity * existProduct.price, session)
+        const newCartItem = await cartDetailModel.create({
+          cartId: cart.insertedId.toString(),
+          productId: productId,
+          quantity: quantity,
+          totalPrice: quantity * existProduct.price
+        }, session)
 
-      } else{
+        // Cập nhật items của cart
+        resultCart = await cardModel.updateItems(cart.insertedId, new ObjectId(newCartItem.insertedId), session)
+      } else {
+        // Nếu có cart kiểm tra xem product đó có trong cart chưa
+        const existsProductInCart = await cartDetailModel.findProductInCartDetail(productId, cart._id, session)
 
-        // Nếu có product trong cart cập nhật số lượng và giá của product 
-        const oldQuantity = exitsProductInCart.quantity
-        const newQuantity = quantity
-        const priceDifference = (newQuantity - oldQuantity) * existProduct.price
+        if (!existsProductInCart) {
+          // Nếu chưa có thì thêm mới vào cart
+          const newCartItem = await cartDetailModel.create({
+            cartId: cart._id.toString(),
+            productId: productId,
+            quantity: quantity,
+            totalPrice: quantity * existProduct.price
+          }, session)
 
-        await cartDetailModel.update(
-          exitsProductInCart._id,
-          { quantity: newQuantity, totalPrice: newQuantity * existProduct.price },
-          session
-        )
+          await cardModel.updateItems(cart._id, new ObjectId(newCartItem.insertedId), session)
+          resultCart = await cardModel.updatePrice(cart._id, quantity * existProduct.price, session)
+        } else {
+          // Nếu có product trong cart, cập nhật số lượng và giá
+          const oldQuantity = existsProductInCart.quantity
+          const newQuantity = quantity
+          const priceDifference = (newQuantity - oldQuantity) * existProduct.price
 
-        resultCart =  await cardModel.updatePrice(cart._id, priceDifference, session)
+          await cartDetailModel.update(
+            existsProductInCart._id,
+            { quantity: newQuantity, totalPrice: newQuantity * existProduct.price },
+            session
+          )
+
+          resultCart = await cardModel.updatePrice(cart._id, priceDifference, session)
+        }
       }
-    }
-    await session.commitTransaction()
-    return resultCart
+
+      return resultCart
+    })
   } catch (error) {
-    await session.abortTransaction()
-    throw error
-  } finally {
+    console.error("Transaction failed:", error)
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to add to cart")}
+    finally {
     session.endSession()
   }
 }
+
 
 export const cardService = {
   getDetailCart,
