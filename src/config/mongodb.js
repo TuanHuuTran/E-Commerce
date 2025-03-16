@@ -23,3 +23,8 @@ export const GET_DB = () => {
   if ( !eCommerceDatabaseInstance ) throw new Error('Must connect to Database first')
   return eCommerceDatabaseInstance
 }
+
+export const GET_CLIENT = () => {
+  if (!mongoClientInstance) throw new Error('Must connect to Database first');
+  return mongoClientInstance;
+}

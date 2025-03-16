@@ -107,6 +107,7 @@ const deleteProduct = async (productId, dataUpdate) => {
 }
 
 export const productModel = {
+  PRODUCT_COLLECTION_NAME,
   findOneById,
   getAllProduct,
   // getDetailProduct,
