@@ -74,6 +74,15 @@ const update = async (itemId, dataUpdate, session) => {
   } catch (error) { throw new Error(error)}
 }
 
+const deleteCartDetail = async (itemId, session) => {
+  try {
+    const result = await GET_DB().collection(CARD_DETAIL_COLLECTION_NAME).deleteOne(
+      { _id: new ObjectId(itemId) },
+      {session}
+    )    
+    return result
+  } catch (error) { throw new Error(error)}
+}
 
 export const cartDetailModel = {
   findAllProductByCartId,
@@ -81,5 +90,7 @@ export const cartDetailModel = {
   findProductInCartDetail,
   create,
   update,
-  CARD_DETAIL_COLLECTION_NAME
+  CARD_DETAIL_COLLECTION_NAME,
+  deleteCartDetail,
+
 }

@@ -60,24 +60,24 @@ const addToCart = async (cardData) => {
   } catch (error) {throw new Error(error)}
 }
 
-const updateItems = async (cardId, dataUpdate, session) => {
-  try {
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
-    { _id: new ObjectId(cardId) },
-    { $push: {items: dataUpdate} },
-    { returnDocument: 'after'},
-    {session}
-  )
-  return result
-  } catch (error) {throw new Error(error)}
-}
+  const updateItems = async (cardId, dataUpdate, session) => {
+    try {
+      const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $push: {items: dataUpdate} },
+      { returnDocument: 'after'},
+      {session}
+    )
+    return result
+    } catch (error) {throw new Error(error)}
+  }
 
 const updatePrice = async (cardId, priceChange, session) => {
   try {
     const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
     { _id: new ObjectId(cardId) },
     { $inc: { totalPrice: priceChange } },
-    { returnDocument: 'after' },
+    { returnDocument: 'after'},
     {session}
   )
   return result
@@ -138,11 +138,37 @@ const getDetailCart = async (cartId, userId) => {
   }
 }
 
+
+const removeItem = async (cartId, cartDetailId, session) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+    { _id: new ObjectId(cartId) },
+    { $pull: { items: new ObjectId(cartDetailId) } },
+    { returnDocument: "after"} ,
+    {session}
+  )
+  return result
+  } catch (error) {throw new Error(error)}
+}
+
+
+  const deleteCart = async (cartId, session) => {
+    try {
+      const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteOne(
+        { _id: new ObjectId(cartId) },
+        {session}
+      )
+      return result
+    } catch (error) { throw new Error(error)}
+  }
+
 export const cardModel = {
   findCartByUserId,
   findOneById,
   addToCart,
   updateItems,
   updatePrice,
-  getDetailCart
+  getDetailCart,
+  removeItem,
+  deleteCart
 }
