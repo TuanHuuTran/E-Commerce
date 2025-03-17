@@ -35,7 +35,22 @@ const update = async (req, res, next) => {
   }
 }
 
+const checkoutCart = async (req, res, next) => {
+  const correctCondition = Joi.object({
+    name: Joi.string().trim().strict(),
+    description: Joi.string().trim().strict(),
+    price: Joi.number().positive(),
+  })
+
+  try {
+    await correctCondition.validateAsync(req.body, { abortEarly: false })
+    next()
+  } catch (error) {
+    next( new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, new Error(error).message))
+  }
+}
 export const cardValidation = {
   create,
-  update
+  update,
+  checkoutCart
 }

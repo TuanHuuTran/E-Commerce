@@ -14,4 +14,7 @@ Router.route('/add-to-cart')
 Router.route('/:id')
 .get( authMiddleware.isAuthorized, asyncHandler(cardController.getDetailCart))
 
+Router.route('/check-out-cart')
+  .post( authMiddleware.isAuthorized, cardValidation.checkoutCart, asyncHandler(cardController.checkoutCart))
+
 export const cardRoute = Router
