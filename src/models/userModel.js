@@ -18,8 +18,10 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   password: Joi.string().required(),
 
   username: Joi.string().required().trim().strict(),
-  address: Joi.array().items(
-    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
+  address: Joi.alternatives().try(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+    Joi.valid(null)
+  ).default(null),
   avatar: Joi.string().default(null),
   role: Joi.string().valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN). default(USER_ROLES.CLIENT),
 
@@ -67,9 +69,23 @@ const update = async (userId, dataUpdate) => {
   return result
   } catch (error) {throw new Error(error)}
 }
+
+const pushUserAddressId = async (userId, userAddressId, session) => {
+  try {
+    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      { $set: {address: userAddressId} },
+      { returnDocument: 'after', session },
+  )
+  return result
+  } catch (error) {throw new Error(error)}
+}
+
 export const userModel = {
+  USER_COLLECTION_NAME,
   findOneById,
   findOneByEmail,
   createUser,
-  update
+  update,
+  pushUserAddressId
 }

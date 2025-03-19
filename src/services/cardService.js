@@ -3,8 +3,13 @@ import { ObjectId } from "mongodb"
 import { GET_CLIENT } from "~/config/mongodb"
 import { cardModel } from "~/models/cardModel"
 import { cartDetailModel } from "~/models/cartDetailModel"
+import { orderDetailModel } from "~/models/orderDetailModel"
+import { orderModel } from "~/models/orderModel"
 import { productModel } from "~/models/productModel"
+import { userAddressModel } from "~/models/userAddressModel"
+import { userModel } from "~/models/userModel"
 import ApiError from "~/utils/ApiError"
+import { ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "~/utils/constants"
 
 const getDetailCart = async (cartId, userId) => {
   try {
@@ -14,9 +19,11 @@ const getDetailCart = async (cartId, userId) => {
 }
 
 const validateProduct = async (productId, quantity, session) => {
-  const product = await productModel.findOneById(productId, {session})
+  const product = await productModel.findOneById(productId, session)
   if ( product ) {
-    if (product.stock < quantity) throw new ApiError(StatusCodes.CONFLICT, "Not enough stock!")
+    if (product.stock < quantity){
+      throw new ApiError(StatusCodes.CONFLICT, "Not enough stock!")
+    } 
   } else {
     throw new ApiError(StatusCodes.NOT_FOUND, "Product not found!")
   }
@@ -120,12 +127,122 @@ const addToCart = async (userId, productId, quantity) => {
 }
 
 
-const checkoutCart = () => {
-  // Kiểm tra cart có tồn tại hay không
-  // Kiểm tra xem sản phẩm trong cart có còn đủ số lượng hay không
-  // Tạo đơn hàng
-  // Cập nhật số lượng product trong kho
-  // Xóa giỏ hàng 
+const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) => {
+  const session = await GET_CLIENT().startSession()
+  try {
+    return await session.withTransaction( async () => {
+      // Kiểm tra cart có tồn tại hay không
+      const cart = await cardModel.findOneById(cartId, userId)
+      if(!cart || cart.items.length === 0 ) throw new ApiError(StatusCodes.NOT_FOUND, 'Cart is empty')
+      
+      
+      // Kiểm tra xem sản phẩm trong cart có còn đủ số lượng hay không
+      // Lấy thông tin chi tiết của từng item trong cart
+      for (const cartItemId of cart.items) {
+      // Lấy thông tin chi tiết của cartDetail
+        const cartDetail = await cartDetailModel.findOneById(cartItemId, session)
+        if (!cartDetail) {
+          throw new ApiError(StatusCodes.NOT_FOUND, 'Cart item not found')
+        }
+        // Lấy thông tin sản phẩm từ productId trong cartDetail
+        const product = await productModel.findOneById(cartDetail.productId, session)
+        if (!product) {
+          throw new ApiError(StatusCodes.NOT_FOUND, `Product not found`)
+        }
+        // Kiểm tra số lượng tồn kho
+        if (product.stock < cartDetail.quantity) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST, 
+            `Sản phẩm ${product.name} không đủ số lượng. Hiện chỉ còn ${product.stock} sản phẩm.`
+          )
+        }
+      }
+       // Kiểm tra và áp dụng mã giảm giá nếu được cung cấp
+      let invoice 
+      if ( paymentMethod === PAYMENT_METHOD.COD) {
+        // Tạo userAddress 
+        const user = await userModel.findOneById(userId)
+        if ( !user.address) {
+          const createAddressUser = await userAddressModel.createAddress(userId, shippingInfo, session)
+          // Push vào user
+         await userModel.pushUserAddressId(userId, new ObjectId(createAddressUser.insertedId), session)
+        } else {
+          await userAddressModel.updateAddress(user.address, shippingInfo, session)
+        }
+         // TODO: Thêm thông tin vận chuyển và theo dõi đơn hàng
+        // Tạo order
+        const orderData = {
+          userId: userId,
+          items: [],
+          totalAmount: cart.totalPrice,
+          paymentMethod: PAYMENT_METHOD.COD,
+          paymentStatus: PAYMENT_STATUS.UNPAID,
+          status: ORDER_STATUS.PENDING,
+          note: note
+        }
+        const newOrder = await orderModel.createOder(orderData, session)
+
+        // Tạo các chi tiết đơn hàng và thu thập ID
+        const orderDetailsIds = []
+        for (const cartItemId of cart.items) {
+          const cartDetail = await cartDetailModel.findOneById(cartItemId, session)
+          const product = await productModel.findOneById(cartDetail.productId, session)
+          
+          // Tạo orderDetail
+          const orderDetailData = {
+            orderId: newOrder.insertedId.toString(),
+            productId: product._id.toString(),
+            productName: product.name,
+            productImage: product.thumbnail || '',
+            quantity: cartDetail.quantity,
+            price: product.price,
+            totalPrice: cartDetail.totalPrice,
+            createdAt: new Date()
+          }
+          
+          const orderDetail = await orderDetailModel.createOrderDetail(orderDetailData, session)
+          orderDetailsIds.push(orderDetail.insertedId)
+          
+           // Cập nhật stock và buyturn cùng lúc
+          const updateResult = await productModel.updateStockAndBuyturn(product._id, cartDetail.quantity, session)
+          // Kiểm tra kết quả cập nhật
+          if (!updateResult || updateResult.modifiedCount === 0) {
+            throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, `Không thể cập nhật tồn kho cho sản phẩm ${product.name}`)
+          }
+        }
+
+        // Cập nhật đơn hàng với các ID của orderDetail
+        await orderModel.updateOrder(
+          newOrder.insertedId,
+          { items: orderDetailsIds }, // Đây là ID của orderDetail, không phải cartDetail
+          session
+        )
+        await cardModel.deleteCart(cart._id, session)
+        // Xóa từng chi tiết giỏ hàng (cartDetail)
+        await cartDetailModel.deleteManyByCartId(cart._id, session)
+
+        const  result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
+        // invoice = await orderModel.findOneById(userId, newOrder.insertedId.toString())
+        invoice = {
+          ...result,
+          userInfo: {...result.userInfo[0]},
+          userAddress: {...result.userAddress[0]}
+        }
+        // TODO: Thêm hệ thống thông báo
+        // Gửi thông báo và email xác nhận đơn hàng
+      } 
+
+      if ( paymentMethod === PAYMENT_METHOD.STRIPE) {
+
+      }
+      return invoice
+    })
+  } catch (error) {
+    console.error("Transaction failed:", error);
+    throw error; // Ném lại lỗi để caller biết
+  } finally {
+    await session.endSession(); // Đảm bảo session được kết thúc
+  }
 }
 
 
