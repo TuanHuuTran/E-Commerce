@@ -9,3 +9,7 @@ export const PASSWORD_CONFIRMATION_MESSAGE = 'Password Confirmation does not mat
 
 export const LIMIT_COMMON_FILE_SIZE = 10485760 // byte = 10 MB
 export const ALLOW_COMMON_FILE_TYPES = ['image/jpg', 'image/jpeg', 'image/png']
+
+export const PHONE_RULE = /^[0-9]{10,11}$/
+export const PHONE_RULE_MESSAGE = 'Phone number must have 10-11 digits'
+

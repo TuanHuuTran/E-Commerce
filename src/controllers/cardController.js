@@ -44,8 +44,8 @@ const deleteCard = async (req, res) => {
 
 const checkoutCart = async (req, res) => {
   const userId = req.jwtDecoded.id
-  const { productId,quantity } = req.body
-  const result = await cardService.checkoutCart()
+  const { cartId ,shippingInfo, note, paymentMethod } = req.body
+  const result = await cardService.checkoutCart(userId,  cartId ,shippingInfo, note, paymentMethod)
   res.status(StatusCodes.OK).json(result)
 }
 

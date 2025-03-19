@@ -24,9 +24,9 @@ const validateBeforeCreate = async (data) => {
   return await PRODUCT_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const findOneById =async (productId) => {
+const findOneById =async (productId, session) => {
   try {
-    const result = await GET_DB().collection(PRODUCT_COLLECTION_NAME).findOne({ _id: new ObjectId(productId) })
+    const result = await GET_DB().collection(PRODUCT_COLLECTION_NAME).findOne({ _id: new ObjectId(productId) }, {session})
     return result
   } catch (error) { throw new Error(error)}
 }
@@ -97,6 +97,24 @@ const updateProduct = async (productId, dataUpdate) => {
   } catch (error) {throw new Error(error)}
 }
 
+const updateStockAndBuyturn = async (productId, quantity, session) => {
+  try {
+    const result = await GET_DB().collection(PRODUCT_COLLECTION_NAME).findOneAndUpdate(
+      { _id: productId },
+      { 
+        $inc: { 
+          stock: -quantity,   // Giảm stock
+          buyturn: quantity   // Tăng buyturn
+        } 
+      },
+      { returnDocument: 'after', session},
+    )
+    return result
+  } catch (error) {
+    throw error
+  }
+}
+
 const deleteProduct = async (productId, dataUpdate) => {
   try {
     const result = await GET_DB().collection(PRODUCT_COLLECTION_NAME).deleteOne(
@@ -113,5 +131,6 @@ export const productModel = {
   // getDetailProduct,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  updateStockAndBuyturn
 }

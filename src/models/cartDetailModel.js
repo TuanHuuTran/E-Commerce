@@ -32,9 +32,9 @@ const findAllProductByCartId=async (cartId, session) => {
 
 
 
-const findOneCartId=async (cartId, session) => {
+const findOneById = async (cartDetailId, session) => {
   try {
-    const result = await GET_DB().collection(CARD_DETAIL_COLLECTION_NAME).findOne({ _id: new ObjectId(cartId) }, {session})
+    const result = await GET_DB().collection(CARD_DETAIL_COLLECTION_NAME).findOne({ _id: new ObjectId(cartDetailId) }, {session})
     return result
   } catch (error) { throw new Error(error)}
 }
@@ -71,7 +71,7 @@ const update = async (itemId, dataUpdate, session) => {
       { returnDocument: 'after', session },
     )
     return result
-  } catch (error) { throw new Error(error)}
+  } catch (error) { throw error}
 }
 
 const deleteCartDetail = async (itemId, session) => {
@@ -84,13 +84,23 @@ const deleteCartDetail = async (itemId, session) => {
   } catch (error) { throw new Error(error)}
 }
 
+const deleteManyByCartId = async (itemId, session) => {
+  try {
+    const result = await GET_DB().collection(CARD_DETAIL_COLLECTION_NAME).deleteMany(
+      { cartId: new ObjectId(itemId) },
+      {session}
+    )    
+    return result
+  } catch (error) { throw new Error(error)}
+}
+
 export const cartDetailModel = {
   findAllProductByCartId,
-  findOneCartId,
+  findOneById,
   findProductInCartDetail,
   create,
   update,
   CARD_DETAIL_COLLECTION_NAME,
   deleteCartDetail,
-
+  deleteManyByCartId
 }

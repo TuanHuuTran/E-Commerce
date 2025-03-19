@@ -40,9 +40,11 @@ const findCartByUserId = async (userId, session) => {
   } catch (error) { throw new Error(error); }
 };
 
-const findOneById=async (cartId) => {
+const findOneById=async (cartId, userId) => {
   try {
-    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOne({ _id: new ObjectId(cartId) })
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOne({ _id: new ObjectId(cartId),
+      userId: new ObjectId(userId)
+     })
     return result
   } catch (error) { throw new Error(error)}
 }
