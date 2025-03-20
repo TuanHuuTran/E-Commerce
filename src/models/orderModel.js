@@ -130,5 +130,5 @@ export const orderModel  = {
   getDetailOrder,
   findOneById,
   createOder,
-  updateOrder
+  updateOrder,
 }

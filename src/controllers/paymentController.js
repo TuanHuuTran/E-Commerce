@@ -9,6 +9,8 @@ import { orderDetailModel } from "~/models/orderDetailModel"
 import { orderHistoryModel } from '~/models/orderHistoryModel'
 import { orderModel } from "~/models/orderModel"
 import { productModel } from '~/models/productModel'
+import { userModel } from '~/models/userModel'
+import { SendEmailProvider } from '~/providers/SendEmailProvider'
 import { ORDER_STATUS, PAYMENT_STATUS } from "~/utils/constants"
 
 export const handleStripeWebhook = async (req, res) => {
@@ -101,8 +103,27 @@ export const handleStripeWebhook = async (req, res) => {
             createdAt: new Date()
           }
           await orderHistoryModel.createOrderHistory(orderHistoryData, dbSession)
-
           console.log('Order history created successfully')
+
+           // NEW CODE: Send confirmation email
+          // Get user email
+          const user = await userModel.findOneById(order.userId, dbSession)
+          if (user && user.email) {
+            // Send email
+            // Flatten the orderDetails array if needed
+            // If orderDetails is an array of arrays, we need to flatten it
+            const flattenedOrderDetails = orderDetails.flat();
+            await SendEmailProvider.sendOrderConfirmationEmail(
+              user.email, 
+              {
+                _id: order._id.toString(),
+                items: flattenedOrderDetails, // Use the order details we already fetched
+                totalAmount: order.totalAmount,
+                paymentMethod: order.paymentMethod,
+                status: ORDER_STATUS.PROCESSING
+              }
+            )
+          }
           console.log('Transaction completed successfully')
         })
         

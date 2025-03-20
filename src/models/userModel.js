@@ -37,9 +37,9 @@ const validateBeforeCreate = async (data) => {
   return await USER_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const findOneById =async (userId) => {
+const findOneById =async (userId, session) => {
   try {
-    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOne({ _id: new ObjectId(userId) })
+    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOne({ _id: new ObjectId(userId) }, {session})
     return result
   } catch (error) { throw new Error(error)}
 }
