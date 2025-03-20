@@ -5,7 +5,6 @@ import { productRoute } from './productRoute'
 import { cardRoute } from './cardRoute'
 
 const Router = express.Router()
-
 Router.use('/users', userRoute)
 Router.use('/uploads', uploadRoute)
 Router.use('/products', productRoute)

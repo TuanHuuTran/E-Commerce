@@ -42,7 +42,7 @@ const createOrderDetail = async (data, session) => {
 const findByOrderId = async (orderId) => {
   try {
     const result = await GET_DB().collection(ORDER_DETAILS_COLLECTION_NAME).find({
-      orderId: orderId
+      _id: new ObjectId(orderId)
     }).toArray()
     return result
   } catch (error) {

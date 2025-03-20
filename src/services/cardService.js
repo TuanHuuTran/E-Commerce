@@ -1,5 +1,6 @@
 import { StatusCodes } from "http-status-codes"
 import { ObjectId } from "mongodb"
+import { env } from "~/config/environment"
 import { GET_CLIENT } from "~/config/mongodb"
 import { cardModel } from "~/models/cardModel"
 import { cartDetailModel } from "~/models/cartDetailModel"
@@ -10,6 +11,8 @@ import { userAddressModel } from "~/models/userAddressModel"
 import { userModel } from "~/models/userModel"
 import ApiError from "~/utils/ApiError"
 import { ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "~/utils/constants"
+
+const stripe = require('stripe')(env.STRIPE_SECRET_KEY)
 
 const getDetailCart = async (cartId, userId) => {
   try {
@@ -127,19 +130,19 @@ const addToCart = async (userId, productId, quantity) => {
 }
 
 
-const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) => {
+const checkoutCart = async (userId, cartId, shippingInfo, note, paymentMethod) => {
   const session = await GET_CLIENT().startSession()
   try {
-    return await session.withTransaction( async () => {
+    return await session.withTransaction(async () => {
       // Kiểm tra cart có tồn tại hay không
       const cart = await cardModel.findOneById(cartId, userId)
-      if(!cart || cart.items.length === 0 ) throw new ApiError(StatusCodes.NOT_FOUND, 'Cart is empty')
-      
-      
+      if (!cart || cart.items.length === 0) throw new ApiError(StatusCodes.NOT_FOUND, 'Cart is empty')
+
       // Kiểm tra xem sản phẩm trong cart có còn đủ số lượng hay không
       // Lấy thông tin chi tiết của từng item trong cart
+      const cartDetails = []
       for (const cartItemId of cart.items) {
-      // Lấy thông tin chi tiết của cartDetail
+        // Lấy thông tin chi tiết của cartDetail
         const cartDetail = await cartDetailModel.findOneById(cartItemId, session)
         if (!cartDetail) {
           throw new ApiError(StatusCodes.NOT_FOUND, 'Cart item not found')
@@ -152,24 +155,29 @@ const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) 
         // Kiểm tra số lượng tồn kho
         if (product.stock < cartDetail.quantity) {
           throw new ApiError(
-            StatusCodes.BAD_REQUEST, 
+            StatusCodes.BAD_REQUEST,
             `Sản phẩm ${product.name} không đủ số lượng. Hiện chỉ còn ${product.stock} sản phẩm.`
           )
         }
+        cartDetails.push({ cartDetail, product })
       }
-       // Kiểm tra và áp dụng mã giảm giá nếu được cung cấp
-      let invoice 
-      if ( paymentMethod === PAYMENT_METHOD.COD) {
-        // Tạo userAddress 
-        const user = await userModel.findOneById(userId)
-        if ( !user.address) {
-          const createAddressUser = await userAddressModel.createAddress(userId, shippingInfo, session)
-          // Push vào user
-         await userModel.pushUserAddressId(userId, new ObjectId(createAddressUser.insertedId), session)
-        } else {
-          await userAddressModel.updateAddress(user.address, shippingInfo, session)
-        }
-         // TODO: Thêm thông tin vận chuyển và theo dõi đơn hàng
+
+      // Kiểm tra và áp dụng mã giảm giá nếu được cung cấp
+      let invoice
+      let stripeSessionData
+
+      // Tạo userAddress 
+      const user = await userModel.findOneById(userId)
+      if (!user.address) {
+        const createAddressUser = await userAddressModel.createAddress(userId, shippingInfo, session)
+        // Push vào user
+        await userModel.pushUserAddressId(userId, new ObjectId(createAddressUser.insertedId), session)
+      } else {
+        await userAddressModel.updateAddress(user.address, shippingInfo, session)
+      }
+
+      if (paymentMethod === PAYMENT_METHOD.COD) {
+        // Xử lý thanh toán COD (giữ nguyên code hiện tại)
         // Tạo order
         const orderData = {
           userId: userId,
@@ -184,10 +192,7 @@ const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) 
 
         // Tạo các chi tiết đơn hàng và thu thập ID
         const orderDetailsIds = []
-        for (const cartItemId of cart.items) {
-          const cartDetail = await cartDetailModel.findOneById(cartItemId, session)
-          const product = await productModel.findOneById(cartDetail.productId, session)
-          
+        for (const { cartDetail, product } of cartDetails) {
           // Tạo orderDetail
           const orderDetailData = {
             orderId: newOrder.insertedId.toString(),
@@ -203,7 +208,7 @@ const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) 
           const orderDetail = await orderDetailModel.createOrderDetail(orderDetailData, session)
           orderDetailsIds.push(orderDetail.insertedId)
           
-           // Cập nhật stock và buyturn cùng lúc
+          // Cập nhật stock và buyturn cùng lúc
           const updateResult = await productModel.updateStockAndBuyturn(product._id, cartDetail.quantity, session)
           // Kiểm tra kết quả cập nhật
           if (!updateResult || updateResult.modifiedCount === 0) {
@@ -214,37 +219,135 @@ const checkoutCart = async (userId,  cartId ,shippingInfo, note, paymentMethod) 
         // Cập nhật đơn hàng với các ID của orderDetail
         await orderModel.updateOrder(
           newOrder.insertedId,
-          { items: orderDetailsIds }, // Đây là ID của orderDetail, không phải cartDetail
+          { items: orderDetailsIds },
           session
         )
         await cardModel.deleteCart(cart._id, session)
         // Xóa từng chi tiết giỏ hàng (cartDetail)
         await cartDetailModel.deleteManyByCartId(cart._id, session)
 
-        const  result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
-        // invoice = await orderModel.findOneById(userId, newOrder.insertedId.toString())
+        const result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
         invoice = {
           ...result,
-          userInfo: {...result.userInfo[0]},
-          userAddress: {...result.userAddress[0]}
+          userInfo: { ...result.userInfo[0] },
+          userAddress: { ...result.userAddress[0] }
         }
-        // TODO: Thêm hệ thống thông báo
-        // Gửi thông báo và email xác nhận đơn hàng
       } 
-
-      if ( paymentMethod === PAYMENT_METHOD.STRIPE) {
-
+      else if (paymentMethod === PAYMENT_METHOD.STRIPE) {
+        // Xử lý thanh toán Stripe
+        // Tạo order với trạng thái chờ thanh toán
+        const orderData = {
+          userId: userId,
+          items: [],
+          totalAmount: cart.totalPrice,
+          paymentMethod: PAYMENT_METHOD.STRIPE,
+          paymentStatus: PAYMENT_STATUS.PENDING,
+          status: ORDER_STATUS.PENDING,
+          note: note
+        }
+        const newOrder = await orderModel.createOder(orderData, session)
+        
+        // Tạo các chi tiết đơn hàng và thu thập ID
+        const orderDetailsIds = []
+        const lineItems = []
+        
+        for (const { cartDetail, product } of cartDetails) {
+          // Tạo orderDetail
+          const orderDetailData = {
+            orderId: newOrder.insertedId.toString(),
+            productId: product._id.toString(),
+            productName: product.name,
+            productImage: product.thumbnail || '',
+            quantity: cartDetail.quantity,
+            price: product.price,
+            totalPrice: cartDetail.totalPrice,
+            createdAt: new Date()
+          }
+          
+          const orderDetail = await orderDetailModel.createOrderDetail(orderDetailData, session)
+          orderDetailsIds.push(orderDetail.insertedId)
+          
+          // Tạo line item cho Stripe
+          lineItems.push({
+            price_data: {
+              currency: 'usd', // Thay đổi theo tiền tệ của bạn
+              product_data: {
+                name: product.name,
+                description: product.description || '',
+                images: [product.thumbnail] // Thêm ảnh sản phẩm nếu có
+              },
+              unit_amount: Math.round((product.price/25000) * 100), // Stripe tính theo cents
+            },
+            quantity: cartDetail.quantity,
+          })
+        }
+        
+        // Cập nhật đơn hàng với các ID của orderDetail
+        await orderModel.updateOrder(
+          newOrder.insertedId,
+          { items: orderDetailsIds },
+          session
+        )
+        
+        // Lấy thông tin người dùng để tạo Stripe session
+        const userInfo = await userModel.findOneById(userId)
+        // const userAddress = await userAddressModel.findOneById(user.address)
+        
+        // Tạo Stripe Checkout Session
+        const stripeSession = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: lineItems,
+          mode: 'payment',
+          success_url: `${env.FRONTEND_URL}/order/success?session_id={CHECKOUT_SESSION_ID}&order_id=${newOrder.insertedId.toString()}`,
+          cancel_url: `${env.FRONTEND_URL}/order/cancel?order_id=${newOrder.insertedId.toString()}`,
+          metadata: {
+            order_id: newOrder.insertedId.toString(),
+            user_id: userId.toString()
+          },
+          customer_email: userInfo.email || null,
+          shipping_address_collection: {
+            allowed_countries: ['US', 'VN'], // Thêm các quốc gia bạn muốn hỗ trợ
+          }
+        })
+        
+        // Lưu thông tin Stripe session vào order
+        await orderModel.updateOrder(
+          newOrder.insertedId,
+          { stripeSessionId: stripeSession.id },
+          session
+        )
+        
+        // Không xóa giỏ hàng và cập nhật số lượng sản phẩm cho đến khi thanh toán thành công
+        // Việc này sẽ được thực hiện trong webhook handler
+        
+        const result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
+        invoice = {
+          ...result,
+          userInfo: { ...result.userInfo[0] },
+          userAddress: { ...result.userAddress[0] },
+          stripeSessionId: stripeSession.id,
+          stripeSessionUrl: stripeSession.url
+        }
+        
+        stripeSessionData = {
+          sessionId: stripeSession.id,
+          url: stripeSession.url
+        }
       }
-      return invoice
+      
+      // Trả về thông tin đơn hàng và thông tin thanh toán Stripe (nếu có)
+      return {
+        invoice,
+        stripeSessionData
+      }
     })
   } catch (error) {
-    console.error("Transaction failed:", error);
-    throw error; // Ném lại lỗi để caller biết
+    console.error("Transaction failed:", error)
+    throw error // Ném lại lỗi để caller biết
   } finally {
-    await session.endSession(); // Đảm bảo session được kết thúc
+    await session.endSession() // Đảm bảo session được kết thúc
   }
 }
-
 
 export const cardService = {
   getDetailCart,

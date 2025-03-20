@@ -100,7 +100,7 @@ const updateProduct = async (productId, dataUpdate) => {
 const updateStockAndBuyturn = async (productId, quantity, session) => {
   try {
     const result = await GET_DB().collection(PRODUCT_COLLECTION_NAME).findOneAndUpdate(
-      { _id: productId },
+      { _id: new ObjectId(productId) },
       { 
         $inc: { 
           stock: -quantity,   // Giảm stock
