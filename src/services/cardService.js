@@ -10,6 +10,7 @@ import { orderModel } from "~/models/orderModel"
 import { productModel } from "~/models/productModel"
 import { userAddressModel } from "~/models/userAddressModel"
 import { userModel } from "~/models/userModel"
+import { SendEmailProvider } from "~/providers/SendEmailProvider"
 import ApiError from "~/utils/ApiError"
 import { ORDER_STATUS, PAYMENT_METHOD, PAYMENT_STATUS } from "~/utils/constants"
 
@@ -238,9 +239,26 @@ const checkoutCart = async (userId, cartId, shippingInfo, note, paymentMethod) =
           orderStatus: ORDER_STATUS.PENDING,
           createdAt: new Date()
         }
-
         await orderHistoryModel.createOrderHistory(orderHistoryData, session)
+
         const result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
+        // Get user email
+        const user = await userModel.findOneById(userId, session);
+        if (user && user.email) {
+          // Send email directly using the data we already have
+          await SendEmailProvider.sendOrderConfirmationEmail(
+            user.email, 
+            {
+              _id: newOrder.insertedId.toString(),
+              items: result.orderItems, // Use the order details we already fetched
+              totalAmount: result.totalAmount,
+              paymentMethod: result.paymentMethod,
+              status: ORDER_STATUS.PROCESSING
+            }
+          );
+        }
+
+                
         invoice = {
           ...result,
           userInfo: { ...result.userInfo[0] },
