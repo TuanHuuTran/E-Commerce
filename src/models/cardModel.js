@@ -164,6 +164,8 @@ const removeItem = async (cartId, cartDetailId, session) => {
     } catch (error) { throw new Error(error)}
   }
 
+
+
 export const cardModel = {
   findCartByUserId,
   findOneById,
@@ -172,5 +174,5 @@ export const cardModel = {
   updatePrice,
   getDetailCart,
   removeItem,
-  deleteCart
+  deleteCart,
 }
