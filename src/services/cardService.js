@@ -5,6 +5,7 @@ import { GET_CLIENT } from "~/config/mongodb"
 import { cardModel } from "~/models/cardModel"
 import { cartDetailModel } from "~/models/cartDetailModel"
 import { orderDetailModel } from "~/models/orderDetailModel"
+import { orderHistoryModel } from "~/models/orderHistoryModel"
 import { orderModel } from "~/models/orderModel"
 import { productModel } from "~/models/productModel"
 import { userAddressModel } from "~/models/userAddressModel"
@@ -226,6 +227,19 @@ const checkoutCart = async (userId, cartId, shippingInfo, note, paymentMethod) =
         // Xóa từng chi tiết giỏ hàng (cartDetail)
         await cartDetailModel.deleteManyByCartId(cart._id, session)
 
+        // Thêm đoạn code tạo lịch sử đơn hàng
+        const orderHistoryData = {
+          userId: userId,
+          orderId: newOrder.insertedId.toString(),
+          totalAmount: cart.totalPrice,
+          finalAmount: cart.totalPrice, // Hoặc tính toán final amount nếu có giảm giá
+          paymentMethod: PAYMENT_METHOD.COD,
+          paymentStatus: PAYMENT_STATUS.UNPAID,
+          orderStatus: ORDER_STATUS.PENDING,
+          createdAt: new Date()
+        }
+
+        await orderHistoryModel.createOrderHistory(orderHistoryData, session)
         const result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
         invoice = {
           ...result,

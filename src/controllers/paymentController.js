@@ -6,6 +6,7 @@ import { GET_CLIENT } from "~/config/mongodb"
 import { cardModel } from "~/models/cardModel"
 import { cartDetailModel } from "~/models/cartDetailModel"
 import { orderDetailModel } from "~/models/orderDetailModel"
+import { orderHistoryModel } from '~/models/orderHistoryModel'
 import { orderModel } from "~/models/orderModel"
 import { productModel } from '~/models/productModel'
 import { ORDER_STATUS, PAYMENT_STATUS } from "~/utils/constants"
@@ -86,6 +87,22 @@ export const handleStripeWebhook = async (req, res) => {
           } else {
             console.log('No cart to delete')
           }
+
+          // Thêm code để lưu lịch sử đơn hàng
+          const orderHistoryData = {
+            userId: order.userId.toString(),
+            orderId: order._id.toString(),
+            totalAmount: order.totalAmount,
+            finalAmount: order.finalAmount,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: PAYMENT_STATUS.PAID,
+            orderStatus: ORDER_STATUS.PROCESSING,
+            stripeSessionId: session.id,
+            createdAt: new Date()
+          }
+          await orderHistoryModel.createOrderHistory(orderHistoryData, dbSession)
+
+          console.log('Order history created successfully')
           console.log('Transaction completed successfully')
         })
         
@@ -95,7 +112,6 @@ export const handleStripeWebhook = async (req, res) => {
         console.error('Error stack:', error.stack)
         // Không trả về lỗi để Stripe không gửi lại webhook
       }
-      
       break
     }
     
