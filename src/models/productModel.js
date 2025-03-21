@@ -15,7 +15,13 @@ const PRODUCT_COLLECTION_SCHEMA = Joi.object({
   category_id: Joi.number().integer().allow(null), 
   thumbnail: Joi.string().allow("").optional(),  
   images: Joi.array().items(Joi.string()).default([]), 
-  buyturn: Joi.number().integer().min(0).optional(),  
+  buyturn: Joi.number().integer().min(0).optional(),
+
+
+  // Thêm hai trường mới cho đánh giá
+  averageRating: Joi.number().min(0).max(5).precision(1).default(0),
+  totalReviews: Joi.number().integer().min(0).default(0),
+
   createdAt: Joi.date().timestamp('javascript').default(Date.now), 
   updatedAt: Joi.date().timestamp('javascript').default(null)
 })
@@ -32,7 +38,7 @@ const findOneById =async (productId, session) => {
 }
 
 
-const getAllProduct =async (page,itemsPerPage,search,sort) => {
+const getAllProduct =async (page, itemsPerPage, search, sort) => {
   try {
     const queryCondition = {}
 

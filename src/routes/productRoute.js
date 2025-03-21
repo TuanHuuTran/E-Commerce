@@ -21,4 +21,8 @@ Router.route('/:id')
     asyncHandler(productController.updateProduct)
   )
 
+// Lấy tất cả review của một sản phẩm
+Router.route('/:productId/reviews')
+  .get(authMiddleware.isAuthorized, asyncHandler(productController.getProductReviews))
+  
 export const productRoute = Router
