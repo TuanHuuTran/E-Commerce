@@ -36,7 +36,7 @@ const login = async (reqBody) => {
     const exitUser = await userModel.findOneByEmail(reqBody.email)
     if (!exitUser) throw new ApiError(StatusCodes.NOT_FOUND,Exception.USER_NOT_FOUND)
     if ( !exitUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, Exception.WRONG_USERNAME_PASSWORD)
-    if (!compareSync(reqBody.password, exitUser.password) ) throw new ApiError(StatusCodes.NOT_ACCEPTABLE,Exception.WRONG_USERNAME_PASSWORD)
+    if (!compareSync(reqBody.password, exitUser.password) ) throw new ApiError(StatusCodes.NOT_ACCEPTABLE,'userName or password wrong')
     
     const userInfo = {
       id: exitUser._id,

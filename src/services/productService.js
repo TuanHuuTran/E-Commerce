@@ -1,5 +1,6 @@
 import { StatusCodes } from "http-status-codes"
 import { productModel } from "~/models/productModel"
+import { reviewModel } from "~/models/reviewModel"
 import { CloudinaryProvider } from "~/providers/CloudinaryProvider"
 import ApiError from "~/utils/ApiError"
 import { DEFAULT_ITEM_PER_PAGE, DEFAULT_PAGE } from "~/utils/constants"
@@ -81,6 +82,17 @@ const updateImageProduct = async (productId, arrayImage) => {
 
 }
 
+const getProductReviews = async (productId, page, itemsPerPage, search, sort) => {
+  try {
+    if (!page) page = DEFAULT_PAGE
+    if(!itemsPerPage) itemsPerPage = DEFAULT_ITEM_PER_PAGE
+
+    const reviews = await reviewModel.getProductReviews(productId, parseInt(page, 10), parseInt(itemsPerPage, 10),search, sort)
+    return reviews
+  } catch (error) {throw error}
+}
+
+
 
 export const productService = {
   getAllProduct,
@@ -88,5 +100,6 @@ export const productService = {
   createProduct,
   updateProduct,
   deleteProduct,
-  updateImageProduct
+  updateImageProduct,
+  getProductReviews
 }

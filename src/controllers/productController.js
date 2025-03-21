@@ -38,11 +38,20 @@ const deleteProduct = async (req, res) => {
   }
 }
 
+const getProductReviews = async (req, res) => {
+  const { productId } = req.params
+  const { page, itemsPerPage, search, sort } = req.query
+  const products = await productService.getProductReviews(productId, page, itemsPerPage, search, sort)
+  res.status(StatusCodes.OK).json(products)
+}
+
+
 
 export const productController = {
   getAllProduct,
   getDetailProduct,
   createProduct,
   updateProduct,
-  deleteProduct
+  deleteProduct,
+  getProductReviews
 }

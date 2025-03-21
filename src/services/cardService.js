@@ -243,7 +243,7 @@ const checkoutCart = async (userId, cartId, shippingInfo, note, paymentMethod) =
 
         const result = await orderModel.getDetailOrder(userId, newOrder.insertedId.toString(), session)
         // Get user email
-        const user = await userModel.findOneById(userId, session);
+        const user = await userModel.findOneById(userId, session)
         if (user && user.email) {
           // Send email directly using the data we already have
           await SendEmailProvider.sendOrderConfirmationEmail(
@@ -255,10 +255,9 @@ const checkoutCart = async (userId, cartId, shippingInfo, note, paymentMethod) =
               paymentMethod: result.paymentMethod,
               status: ORDER_STATUS.PROCESSING
             }
-          );
+          )
         }
-
-                
+    
         invoice = {
           ...result,
           userInfo: { ...result.userInfo[0] },
